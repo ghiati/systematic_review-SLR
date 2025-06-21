@@ -19,6 +19,29 @@ from App_.screening import DatabaseManager, AIScreener, initialize_session_state
 from utils.data_base import create_database
 
 
+def clear_database():
+    """Clear all data from the database"""
+    try:
+        import sqlite3
+        conn = sqlite3.connect('research_analytics.db')
+        cursor = conn.cursor()
+        
+        # Get all table names
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = cursor.fetchall()
+        
+        # Clear each table
+        for table in tables:
+            table_name = table[0]
+            cursor.execute(f"DELETE FROM {table_name}")
+        
+        conn.commit()
+        conn.close()
+        
+        return True, "Database cleared successfully!"
+    except Exception as e:
+        return False, f"Error clearing database: {str(e)}"
+
 def render_ai_screening_tab():
     """Render the AI Screening tab with all functionality from screening.py"""
     st.header("🤖 AI-Powered Article Screening")
@@ -299,7 +322,7 @@ def main():
     st.title("📚 Research Analytics - Complete System")
     st.markdown("Upload, process, analyze, and screen research articles with AI assistance")
     
-    # Sidebar for file upload (same as app.py)
+    # Sidebar for file upload and database management
     with st.sidebar:
         st.header("📤 Upload RIS File")
         
@@ -320,7 +343,37 @@ def main():
             disabled=(uploaded_file is None or not source_name.strip()),
             use_container_width=True
         )
-    
+        
+        # Database management section
+        st.divider()
+        st.header("🗄️ Database Management")
+        
+        # Clear database button with confirmation
+        if st.button("🗑️ Clear Database", 
+                    use_container_width=True,
+                    type="secondary"):
+            st.session_state.show_clear_confirmation = True
+        
+        # Show confirmation dialog
+        if st.session_state.get('show_clear_confirmation', False):
+            st.warning("⚠️ This will delete ALL data from the database!")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("✅ Confirm", use_container_width=True):
+                    success, message = clear_database()
+                    if success:
+                        st.success(message)
+                        st.balloons()
+                    else:
+                        st.error(message)
+                    st.session_state.show_clear_confirmation = False
+                    st.rerun()
+            
+            with col2:
+                if st.button("❌ Cancel", use_container_width=True):
+                    st.session_state.show_clear_confirmation = False
+                    st.rerun()
     # Process file if button clicked with improved error handling
     results = None
     if process_button and uploaded_file and source_name.strip():
